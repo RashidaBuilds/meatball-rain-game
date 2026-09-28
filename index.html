@@ -1,34 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Meatball Rain Game</title>
-  <link rel="icon" type="image/svg+xml" href="assets/meatball-40.svg">
-  
+
   <!-- Google Font: Caveat (Regular 400, Bold 700) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
-  
+
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <div id="app" class="app-root">
-    
+
     <!-- START SCREEN (Accurately reproduces Figma Node #4:86) -->
     <div id="start-screen" class="screen-overlay start-screen">
       <div class="start-content-container">
-        
-        <!-- Floating Meatballs (Figma Node #4:134, #4:142, #4:150) -->
-        <img src="assets/meatball-40.svg" alt="" class="floating-meatball meatball-pos-1" width="40" height="40" aria-hidden="true">
-        <img src="assets/meatball-28.svg" alt="" class="floating-meatball meatball-pos-2" width="28" height="28" aria-hidden="true">
-        <img src="assets/meatball-50.svg" alt="" class="floating-meatball meatball-pos-3" width="50" height="50" aria-hidden="true">
 
-        <!-- Title Cluster (Figma Node #4:91) -->
+        <!-- Title Cluster with Floating Meatballs -->
         <div class="title-cluster">
-          <h1 class="title-line title-meatball">MEATBALL</h1>
-          <h1 class="title-line title-rain">RAIN</h1>
+          <!-- Floating Meatball 1: 40x40 -->
+          <img src="assets/meatball-40.svg" alt="" class="floating-meatball meatball-pos-1" width="40" height="40"
+            aria-hidden="true">
+
+          <!-- Floating Meatball 2: 28x28 -->
+          <img src="assets/meatball-28.svg" alt="" class="floating-meatball meatball-pos-2" width="28" height="28"
+            aria-hidden="true">
+
+          <!-- Floating Meatball 3: 50x50 -->
+          <img src="assets/meatball-50.svg" alt="" class="floating-meatball meatball-pos-3" width="50" height="50"
+            aria-hidden="true">
+
+          <div class="title-stack">
+            <h1 class="title-line title-meatball">MEATBALL</h1>
+            <h1 class="title-line title-rain">RAIN</h1>
+          </div>
         </div>
 
         <!-- Tagline / Instructions -->
@@ -48,20 +58,20 @@
 
         <!-- Footer Caption -->
         <p class="start-caption">Good food. Good dog.</p>
-        
+
       </div>
     </div>
 
     <!-- GAMEPLAY ARENA -->
     <div id="game-screen" class="game-screen" style="display: none;">
-      
+
       <!-- Top Gameplay HUD -->
       <header class="game-hud">
         <div class="hud-score">
           <span class="hud-label">CAUGHT:</span>
           <span id="score-value" class="hud-value">0</span>
         </div>
-        
+
         <div class="hud-lives" aria-label="Happiness / Lives">
           <span class="hud-label">HAPPINESS:</span>
           <div id="lives-container" class="lives-container">
@@ -75,7 +85,7 @@
       <!-- Meatball Falling Arena -->
       <div id="game-arena" class="game-arena">
         <!-- Floating falling meatballs will be injected here dynamically -->
-        
+
         <!-- Player Dog Sprite -->
         <div id="player-dog" class="player-dog">
           <img src="assets/dog.svg" alt="Player Dog" class="player-dog-img" width="140" height="130" draggable="false">
@@ -97,7 +107,7 @@
       <div class="game-over-card">
         <h2 class="game-over-title">GAME OVER</h2>
         <p class="game-over-subtitle">The dog got hungry!</p>
-        
+
         <div class="game-over-stats">
           <div class="stat-row">
             <span class="stat-label">Meatballs Caught:</span>
@@ -114,7 +124,7 @@
             PLAY AGAIN
           </button>
         </div>
-        
+
         <p class="start-caption">Good food. Good dog.</p>
       </div>
     </div>
@@ -123,4 +133,5 @@
 
   <script type="module" src="game.js"></script>
 </body>
+
 </html>
