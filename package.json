@@ -1,0 +1,20 @@
+{
+  "name": "meatball-rain-game",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/RashidaBuilds/meatball-rain-game/issues"
+  },
+  "homepage": "https://github.com/RashidaBuilds/meatball-rain-game#readme",
+  "devDependencies": {
+    "puppeteer-core": "^25.12.0",
+    "vite": "^8.3.1"
+  }
+}

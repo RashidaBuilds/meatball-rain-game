@@ -1,0 +1,647 @@
+/* ==========================================================================
+   Meatball Rain Game — Stylesheet
+   Strict adherence to Figma Node #4:86 & DESIGN.md
+   ========================================================================== */
+
+/* 1. Design Tokens & Variables */
+:root {
+  --color-bg-canvas: #F5F0E8;
+  --color-ink-primary: #1A1A1A;
+  --color-meatball-accent: #7A3B1E;
+  --color-meatball-shadow: #5A2A10;
+  --color-text-secondary: #555555;
+  --color-text-muted: #888888;
+  --color-dog-muzzle: #FDE8B0;
+  --color-dog-ear: #F0E8D8;
+  --color-dog-tongue: #F06080;
+  --color-shadow-ground: rgba(0, 0, 0, 0.15);
+  --color-highlight-white: rgba(255, 255, 255, 0.2);
+
+  --font-family-handwritten: 'Caveat', cursive, sans-serif;
+  --shadow-button-solid: 5px 5px 0px 0px #7A3B1E;
+  --border-button-radius: 4px;
+  --border-width-ink: 2.73px;
+  --ground-bottom: 80px;
+}
+
+/* 2. Global Resets & Body */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--color-bg-canvas);
+  color: var(--color-ink-primary);
+  font-family: var(--font-family-handwritten);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.app-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--color-bg-canvas);
+}
+
+/* 3. Screen Overlays */
+.screen-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--color-bg-canvas);
+  z-index: 10;
+}
+
+/* 4. Start Screen (Figma Node #4:86 replication) */
+.start-content-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  width: 428px;
+  max-width: 100%;
+  position: relative;
+}
+
+/* Title Cluster (Figma Node #4:91) */
+.title-cluster {
+  position: relative;
+  width: 379.65px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.title-line {
+  font-family: var(--font-family-handwritten);
+  font-weight: 700;
+  font-size: 96px;
+  line-height: 96px;
+  letter-spacing: -0.0104em;
+  text-align: center;
+  text-transform: uppercase;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.title-meatball {
+  color: var(--color-ink-primary);
+}
+
+.title-rain {
+  color: var(--color-meatball-accent);
+}
+
+/* Floating Meatballs (Coordinates matching Figma Node #4:134, #4:142, #4:150) */
+.floating-meatball {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Meatball 1: 40x40 (Figma: x: 106.90px, y: 20.57px) */
+.meatball-pos-1 {
+  width: 40px;
+  height: 40px;
+  left: 106.9px;
+  top: 20.57px;
+  animation: floatGentle1 3.2s ease-in-out infinite;
+}
+
+/* Meatball 2: 28x28 (Figma: x: 292.76px, y: 9.77px) */
+.meatball-pos-2 {
+  width: 28px;
+  height: 28px;
+  left: 292.76px;
+  top: 9.77px;
+  animation: floatGentle2 2.8s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+/* Meatball 3: 50x50 (Figma: x: 235.11px, y: -7.89px) */
+.meatball-pos-3 {
+  width: 50px;
+  height: 50px;
+  left: 235.11px;
+  top: -7.89px;
+  animation: floatGentle3 3.6s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+@keyframes floatGentle1 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(2deg); }
+}
+
+@keyframes floatGentle2 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(-3deg); }
+}
+
+@keyframes floatGentle3 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(3deg); }
+}
+
+/* Tagline */
+.start-tagline {
+  font-family: var(--font-family-handwritten);
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 32px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+/* Dog Mascot Container */
+.dog-start-container {
+  width: 140px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dog-mascot {
+  width: 140px;
+  height: 130px;
+  display: block;
+  animation: dogBreathe 4s ease-in-out infinite;
+}
+
+@keyframes dogBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02, 0.98); }
+}
+
+/* Primary Button (Figma Node #4:158) */
+.btn-start-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 8px;
+}
+
+.btn-start {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 40px;
+  min-width: 156px;
+  min-height: 74px;
+  background-color: var(--color-ink-primary);
+  color: var(--color-bg-canvas);
+  font-family: var(--font-family-handwritten);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 36px;
+  text-align: center;
+  text-transform: uppercase;
+  border: var(--border-width-ink) solid var(--color-ink-primary);
+  border-radius: var(--border-button-radius);
+  box-shadow: var(--shadow-button-solid);
+  transform: rotate(-1deg);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+  outline: none;
+}
+
+.btn-start:hover {
+  transform: translate(-1px, -1px) rotate(-1deg);
+  box-shadow: 6px 6px 0px 0px var(--color-meatball-accent);
+  background-color: #262626;
+}
+
+.btn-start:active {
+  transform: translate(5px, 5px) rotate(-1deg);
+  box-shadow: 0px 0px 0px 0px var(--color-meatball-accent);
+}
+
+.btn-start:focus-visible {
+  outline: 3px dashed var(--color-meatball-accent);
+  outline-offset: 4px;
+}
+
+/* Footer Caption */
+.start-caption {
+  font-family: var(--font-family-handwritten);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 28px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* ==========================================================================
+   5. Gameplay Screen
+   ========================================================================== */
+.game-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-bg-canvas);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 5;
+}
+
+/* HUD */
+.game-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  padding: 12px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.hud-score, .hud-lives {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-ink-primary);
+}
+
+.hud-label {
+  letter-spacing: 0.05em;
+}
+
+.hud-value {
+  color: var(--color-meatball-accent);
+  min-width: 40px;
+}
+
+.lives-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 26px;
+}
+
+.heart-icon {
+  display: inline-block;
+  transition: transform 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+}
+
+.heart-icon.lost {
+  opacity: 0.25;
+  filter: grayscale(1);
+  transform: scale(0.85);
+}
+
+/* Game Arena */
+.game-arena {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Ground Line */
+.ground-line {
+  position: absolute;
+  bottom: var(--ground-bottom);
+  left: 0;
+  width: 100%;
+  height: 2.73px;
+  background-color: var(--color-ink-primary);
+  z-index: 10;
+}
+
+/* Player Dog */
+.player-dog {
+  position: absolute;
+  bottom: var(--ground-bottom);
+  left: 50%;
+  width: 140px;
+  height: 130px;
+  transform: translateX(-50%);
+  z-index: 15;
+  pointer-events: none;
+  transition: transform 0.05s linear;
+}
+
+.player-dog-img {
+  width: 140px;
+  height: 130px;
+  display: block;
+  pointer-events: none;
+  transition: transform 0.1s ease;
+}
+
+/* Facing Left */
+.player-dog.facing-left .player-dog-img {
+  transform: scaleX(-1);
+}
+
+/* Dog Catch Animation Reaction */
+.player-dog.catching .player-dog-img {
+  animation: dogCatchHop 0.2s ease;
+}
+
+@keyframes dogCatchHop {
+  0% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.05, 0.95); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.player-dog.facing-left.catching .player-dog-img {
+  animation: dogCatchHopLeft 0.2s ease;
+}
+
+@keyframes dogCatchHopLeft {
+  0% { transform: translateY(0) scale(-1, 1); }
+  50% { transform: translateY(-8px) scale(-1.05, 0.95); }
+  100% { transform: translateY(0) scale(-1, 1); }
+}
+
+/* Falling Meatball in Gameplay */
+.falling-meatball {
+  position: absolute;
+  z-index: 12;
+  pointer-events: none;
+  will-change: transform, top, left;
+}
+
+/* Meatball Catch Floating Score Effect */
+.score-popup {
+  position: absolute;
+  font-family: var(--font-family-handwritten);
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--color-meatball-accent);
+  pointer-events: none;
+  z-index: 25;
+  animation: popupFloat 0.7s ease-out forwards;
+}
+
+@keyframes popupFloat {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-35px) scale(1.25); }
+}
+
+/* Meatball Splat Ground Mark Effect */
+.meatball-splat {
+  position: absolute;
+  bottom: calc(var(--ground-bottom) - 2px);
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-meatball-accent);
+  opacity: 0.8;
+  z-index: 11;
+  pointer-events: none;
+  animation: splatFade 0.9s ease-out forwards;
+}
+
+@keyframes splatFade {
+  0% { opacity: 0.8; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1.8); }
+}
+
+/* Controls Hint */
+.game-controls-hint {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 20px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.game-controls-hint kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  font-family: var(--font-family-handwritten);
+  font-size: 18px;
+  color: var(--color-ink-primary);
+  background-color: var(--color-dog-ear);
+  border: 1.5px solid var(--color-ink-primary);
+  border-radius: 3px;
+  box-shadow: 1px 1px 0px 0px var(--color-ink-primary);
+}
+
+/* ==========================================================================
+   6. Game Over Modal Card
+   ========================================================================== */
+.game-over-screen {
+  background-color: rgba(245, 240, 232, 0.85);
+  backdrop-filter: blur(2px);
+  z-index: 30;
+}
+
+.game-over-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 36px 44px;
+  background-color: var(--color-bg-canvas);
+  border: var(--border-width-ink) solid var(--color-ink-primary);
+  border-radius: var(--border-button-radius);
+  box-shadow: 6px 6px 0px 0px var(--color-meatball-accent);
+  width: 90%;
+  max-width: 420px;
+  animation: cardPopIn 0.25s ease-out;
+}
+
+@keyframes cardPopIn {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.game-over-title {
+  font-family: var(--font-family-handwritten);
+  font-weight: 700;
+  font-size: 72px;
+  line-height: 72px;
+  color: var(--color-meatball-accent);
+  text-align: center;
+  margin: 0;
+}
+
+.game-over-subtitle {
+  font-family: var(--font-family-handwritten);
+  font-weight: 400;
+  font-size: 26px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.game-over-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 0;
+  border-top: 1.5px dashed var(--color-text-muted);
+  border-bottom: 1.5px dashed var(--color-text-muted);
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 28px;
+  color: var(--color-ink-primary);
+}
+
+.stat-value {
+  font-weight: 700;
+  color: var(--color-meatball-accent);
+}
+
+/* ==========================================================================
+   7. Responsive Rules (Mobile & Small Displays)
+   ========================================================================== */
+@media (max-width: 600px) {
+  .title-line {
+    font-size: clamp(64px, 16vw, 84px);
+    line-height: clamp(64px, 16vw, 84px);
+  }
+
+  .start-tagline {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  :root {
+    --ground-bottom: 60px;
+  }
+
+  .dog-start-container,
+  .dog-mascot {
+    width: 120px;
+    height: 111px;
+  }
+
+  .meatball-pos-1 {
+    width: 32px;
+    height: 32px;
+    left: 24.98%;
+    top: 15px;
+  }
+
+  .meatball-pos-2 {
+    width: 24px;
+    height: 24px;
+    left: 68.4%;
+    top: 9px;
+  }
+
+  .meatball-pos-3 {
+    width: 40px;
+    height: 40px;
+    left: 54.93%;
+    top: -5px;
+  }
+
+  .btn-start {
+    padding: 14px 32px;
+    font-size: 26px;
+    line-height: 32px;
+    min-height: 64px;
+  }
+
+  .game-hud {
+    padding: 10px 16px;
+    height: 56px;
+  }
+
+  .hud-score, .hud-lives {
+    font-size: 22px;
+  }
+
+  .lives-container {
+    font-size: 18px;
+  }
+
+  .ground-line {
+    bottom: var(--ground-bottom);
+  }
+
+  .player-dog {
+    bottom: var(--ground-bottom);
+    width: 120px;
+    height: 111px;
+  }
+
+  .player-dog-img {
+    width: 120px;
+    height: 111px;
+  }
+
+  .game-controls-hint {
+    bottom: 12px;
+    font-size: 16px;
+  }
+}
+
+/* Viewport height compression (laptops / landscape mobile) */
+@media (max-height: 650px) {
+  .start-content-container {
+    gap: 8px;
+  }
+
+  .title-line {
+    font-size: 72px;
+    line-height: 72px;
+  }
+
+  .start-tagline {
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .dog-start-container,
+  .dog-mascot {
+    width: 110px;
+    height: 102px;
+  }
+
+  .btn-start {
+    padding: 10px 30px;
+    font-size: 24px;
+    line-height: 30px;
+    min-height: 56px;
+  }
+
+  .start-caption {
+    font-size: 16px;
+    line-height: 22px;
+  }
+}
