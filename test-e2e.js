@@ -4,7 +4,7 @@ const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 const URL = 'http://127.0.0.1:5173/';
 
 async function runTests() {
-  console.log('--- Starting Meatball Rain Game E2E Validation ---');
+  console.log('=== Starting Comprehensive Gamepad, Mobile Arrow Buttons & Touch-Drag E2E Validation ===');
   
   const browser = await puppeteer.launch({
     executablePath: CHROME_PATH,
@@ -26,10 +26,10 @@ async function runTests() {
 
     // Wait for fonts to load
     await page.evaluateHandle('document.fonts.ready');
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 400));
 
     // 2. Validate Start Screen Typography & Colors
-    console.log('Checking Start Screen Elements...');
+    console.log('[Test 1] Validating Start Screen Visual Elements...');
     const titleMeatball = await page.$eval('.title-meatball', el => ({
       text: el.textContent.trim(),
       color: getComputedStyle(el).color,
@@ -48,127 +48,440 @@ async function runTests() {
     const bgCanvas = await page.$eval('.app-root', el => getComputedStyle(el).backgroundColor);
     console.log('Canvas Background:', bgCanvas);
 
-    const btnStyle = await page.$eval('.btn-start', el => ({
-      text: el.textContent.trim(),
-      bgColor: getComputedStyle(el).backgroundColor,
-      color: getComputedStyle(el).color,
-      boxShadow: getComputedStyle(el).boxShadow,
-      border: getComputedStyle(el).border
-    }));
-    console.log('Start Button Style:', btnStyle);
+    // 3. Test Gamepad Connection & Start via Gamepad Button A (Button 0)
+    console.log('[Test 2] Connecting Gamepad and starting via Button A...');
+    await page.evaluate(() => {
+      window.__mockGamepad = {
+        id: 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)',
+        index: 0,
+        connected: true,
+        mapping: 'standard',
+        axes: [0, 0, 0, 0],
+        buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }))
+      };
 
-    // Capture desktop start screen
-    await page.screenshot({ path: 'test_desktop_start.png' });
-    console.log('Saved test_desktop_start.png');
+      navigator.getGamepads = () => [window.__mockGamepad];
+      try {
+        window.dispatchEvent(new Event('gamepadconnected'));
+      } catch (e) {}
+    });
 
-    // 3. Test Clicking START
-    console.log('Clicking START button...');
-    await page.click('#btn-start');
-    await new Promise(r => setTimeout(r, 600));
+    // Press Gamepad Button A (button 0)
+    await page.evaluate(() => {
+      window.__mockGamepad.buttons[0] = { pressed: true, value: 1.0 };
+    });
+    await new Promise(r => setTimeout(r, 200));
 
-    // Check gameplay screen visibility
+    // Release Gamepad Button A
+    await page.evaluate(() => {
+      window.__mockGamepad.buttons[0] = { pressed: false, value: 0.0 };
+    });
+    await new Promise(r => setTimeout(r, 400));
+
     const isGameVisible = await page.$eval('#game-screen', el => el.style.display !== 'none');
-    console.log('Game screen visible:', isGameVisible);
-
-    // 4. Test Dog Movement (Keyboard)
-    console.log('Testing Keyboard Controls...');
-    const initialDogLeft = await page.$eval('#player-dog', el => parseFloat(el.style.left));
-    console.log('Initial Dog Left:', initialDogLeft);
-
-    // Press ArrowRight for 300ms
-    await page.keyboard.down('ArrowRight');
-    await new Promise(r => setTimeout(r, 300));
-    await page.keyboard.up('ArrowRight');
-
-    const dogLeftAfterRight = await page.$eval('#player-dog', el => parseFloat(el.style.left));
-    console.log('Dog Left after moving right:', dogLeftAfterRight);
-    if (dogLeftAfterRight <= initialDogLeft) {
-      throw new Error('Dog did not move right on ArrowRight!');
+    console.log('Game screen visible after Gamepad Button A:', isGameVisible);
+    if (!isGameVisible) {
+      throw new Error('Gamepad button A did not start the game!');
     }
 
-    // Press ArrowLeft for 400ms
-    await page.keyboard.down('ArrowLeft');
-    await new Promise(r => setTimeout(r, 400));
-    await page.keyboard.up('ArrowLeft');
+    // 4. Test Controller Left Analog Stick Movement
+    console.log('[Test 3] Testing Left Analog Stick Movement...');
+    const initialDogPos = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Initial dog pos:', initialDogPos);
 
-    const dogLeftAfterLeft = await page.$eval('#player-dog', el => ({
+    // Move stick right: axes[0] = 0.8
+    await page.evaluate(() => {
+      window.__mockGamepad.axes[0] = 0.8;
+    });
+    await new Promise(r => setTimeout(r, 300));
+    const dogPosStickRight = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog pos after Stick Right (0.8):', dogPosStickRight);
+    if (dogPosStickRight <= initialDogPos) {
+      throw new Error('Dog did not move right with analog stick!');
+    }
+
+    // Move stick left: axes[0] = -0.8
+    await page.evaluate(() => {
+      window.__mockGamepad.axes[0] = -0.8;
+    });
+    await new Promise(r => setTimeout(r, 400));
+    const dogStickLeft = await page.$eval('#player-dog', el => ({
       x: parseFloat(el.style.left),
       facingLeft: el.classList.contains('facing-left')
     }));
-    console.log('Dog after moving left:', dogLeftAfterLeft);
-    if (!dogLeftAfterLeft.facingLeft) {
-      console.warn('Expected facing-left class on moving left');
+    console.log('Dog pos after Stick Left (-0.8):', dogStickLeft);
+    if (dogStickLeft.x >= dogPosStickRight) {
+      throw new Error('Dog did not move left with analog stick!');
+    }
+    if (!dogStickLeft.facingLeft) {
+      throw new Error('Dog is not facing left when moving left via analog stick!');
     }
 
-    // 5. Test Pointer / Mouse Tracking
-    console.log('Testing Mouse Movement Tracking...');
-    await page.mouse.move(350, 700);
-    await new Promise(r => setTimeout(r, 200));
-    const dogPosAfterMouse = await page.$eval('#player-dog', el => parseFloat(el.style.left));
-    console.log('Dog Left after mouse move to 350:', dogPosAfterMouse);
-
-    // Wait and observe falling meatballs
-    console.log('Waiting for meatballs to spawn and fall...');
-    await new Promise(r => setTimeout(r, 2000));
-    
-    const activeMeatballsCount = await page.$$eval('.falling-meatball', els => els.length);
-    console.log('Active meatballs count in arena:', activeMeatballsCount);
-
-    await page.screenshot({ path: 'test_gameplay.png' });
-    console.log('Saved test_gameplay.png');
-
-    // 6. Test Game Over (Trigger by losing lives)
-    console.log('Testing Game Over transition...');
-    // We can simulate game over by setting lives to 0 or letting meatballs fall
+    // Neutralize stick
     await page.evaluate(() => {
-      // simulate remaining misses to reach game over
-      for (let i = 0; i < 3; i++) {
-        const dummyMb = { x: 100, y: 800, type: { size: 40, points: 10 }, element: document.createElement('div') };
-        // call handleMeatballMiss directly or wait
-      }
+      window.__mockGamepad.axes[0] = 0.0;
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    // 5. Test Analog Stick Deadzone (0.08 < 0.18 deadzone)
+    console.log('[Test 4] Testing Analog Stick Deadzone...');
+    const dogPosBeforeDeadzone = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    await page.evaluate(() => {
+      window.__mockGamepad.axes[0] = 0.08; // within deadzone
+    });
+    await new Promise(r => setTimeout(r, 200));
+    const dogPosAfterDeadzone = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog pos after stick within deadzone (0.08):', dogPosAfterDeadzone);
+    if (Math.abs(dogPosAfterDeadzone - dogPosBeforeDeadzone) > 0.01) {
+      throw new Error('Dog moved when stick was within deadzone!');
+    }
+
+    // 6. Test D-Pad Movement (Buttons 14 and 15)
+    console.log('[Test 5] Testing D-Pad Buttons (14 & 15)...');
+    // D-Pad Right: button 15
+    await page.evaluate(() => {
+      window.__mockGamepad.axes[0] = 0;
+      window.__mockGamepad.buttons[15] = { pressed: true, value: 1.0 };
+    });
+    await new Promise(r => setTimeout(r, 300));
+    const dogPosDpadRight = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog pos after D-Pad Right:', dogPosDpadRight);
+    if (dogPosDpadRight <= dogPosAfterDeadzone) {
+      throw new Error('Dog did not move right with D-pad!');
+    }
+
+    // D-Pad Left: button 14
+    await page.evaluate(() => {
+      window.__mockGamepad.buttons[15] = { pressed: false, value: 0.0 };
+      window.__mockGamepad.buttons[14] = { pressed: true, value: 1.0 };
+    });
+    await new Promise(r => setTimeout(r, 300));
+    const dogPosDpadLeft = await page.$eval('#player-dog', el => ({
+      x: parseFloat(el.style.left),
+      facingLeft: el.classList.contains('facing-left')
+    }));
+    console.log('Dog pos after D-Pad Left:', dogPosDpadLeft);
+    if (dogPosDpadLeft.x >= dogPosDpadRight) {
+      throw new Error('Dog did not move left with D-pad!');
+    }
+    if (!dogPosDpadLeft.facingLeft) {
+      throw new Error('Dog is not facing left when moving left via D-pad!');
+    }
+
+    // Clear D-pad
+    await page.evaluate(() => {
+      window.__mockGamepad.buttons[14] = { pressed: false, value: 0.0 };
     });
 
-    // Let's wait a few seconds for misses to naturally accumulate, or trigger gameOver
+    // 7. Test Keyboard Controls (Simultaneous with Controller)
+    console.log('[Test 6] Testing Keyboard Controls (Arrows and A/D)...');
+    const posBeforeKey = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    await page.keyboard.down('KeyD');
+    await new Promise(r => setTimeout(r, 250));
+    await page.keyboard.up('KeyD');
+
+    const posAfterKeyD = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog pos after KeyD:', posAfterKeyD);
+    if (posAfterKeyD <= posBeforeKey) {
+      throw new Error('KeyD did not move the dog right!');
+    }
+
+    await page.keyboard.down('KeyA');
+    await new Promise(r => setTimeout(r, 250));
+    await page.keyboard.up('KeyA');
+
+    const posAfterKeyA = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog pos after KeyA:', posAfterKeyA);
+    if (posAfterKeyA >= posAfterKeyD) {
+      throw new Error('KeyA did not move the dog left!');
+    }
+
+    // Arrow keys
+    await page.keyboard.down('ArrowRight');
+    await new Promise(r => setTimeout(r, 250));
+    await page.keyboard.up('ArrowRight');
+    const posAfterArrowRight = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog pos after ArrowRight:', posAfterArrowRight);
+    if (posAfterArrowRight <= posAfterKeyA) {
+      throw new Error('ArrowRight did not move the dog right!');
+    }
+
+    // 8. Test Disconnecting Gamepad
+    console.log('[Test 7] Testing Gamepad Disconnect Handling...');
     await page.evaluate(() => {
-      // Fast forward lives loss to test Game Over UI
-      window.dispatchEvent(new CustomEvent('test-game-over'));
-      // directly trigger gameOver modal in page
-      document.getElementById('final-score').textContent = '45';
-      document.getElementById('best-score').textContent = '45';
+      window.__mockGamepad.connected = false;
+      try {
+        window.dispatchEvent(new Event('gamepaddisconnected'));
+      } catch (e) {}
+    });
+    // Keyboard should still work without issues
+    const posBeforeDisconnectKey = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    await page.keyboard.down('ArrowLeft');
+    await new Promise(r => setTimeout(r, 200));
+    await page.keyboard.up('ArrowLeft');
+    const posAfterDisconnectKey = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog pos after disconnect and ArrowLeft:', posAfterDisconnectKey);
+    if (posAfterDisconnectKey >= posBeforeDisconnectKey) {
+      throw new Error('Keyboard failed after gamepad disconnect!');
+    }
+
+    // 9. Test Game Over & Restart via Gamepad Start Button (Button 9)
+    console.log('[Test 8] Testing Game Over & Restart via Gamepad Start Button (9)...');
+    // Reconnect gamepad
+    await page.evaluate(() => {
+      window.__mockGamepad.connected = true;
       document.getElementById('game-over-screen').style.display = 'flex';
     });
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 300));
 
-    const isGameOverVisible = await page.$eval('#game-over-screen', el => el.style.display !== 'none');
-    console.log('Game Over screen visible:', isGameOverVisible);
-    await page.screenshot({ path: 'test_game_over.png' });
-    console.log('Saved test_game_over.png');
-
-    // 7. Test Restart Button
-    console.log('Testing PLAY AGAIN button...');
-    await page.click('#btn-restart');
-    await new Promise(r => setTimeout(r, 500));
+    // Press Gamepad Start button (button 9)
+    await page.evaluate(() => {
+      window.__mockGamepad.buttons[9] = { pressed: true, value: 1.0 };
+    });
+    await new Promise(r => setTimeout(r, 200));
+    await page.evaluate(() => {
+      window.__mockGamepad.buttons[9] = { pressed: false, value: 0.0 };
+    });
+    await new Promise(r => setTimeout(r, 400));
 
     const isPlayingAfterRestart = await page.$eval('#game-screen', el => el.style.display !== 'none');
-    console.log('Game playing after restart:', isPlayingAfterRestart);
+    console.log('Game playing after Gamepad Start restart:', isPlayingAfterRestart);
+    if (!isPlayingAfterRestart) {
+      throw new Error('Gamepad Start button did not restart the game!');
+    }
 
-    // 8. Test Mobile Viewport (390 x 844)
-    console.log('Testing Mobile Viewport (390x844)...');
-    await page.setViewport({ width: 390, height: 844 });
+    // 10. Test Mobile Viewport (390 x 844) — Arrow Buttons & Touch Drag
+    console.log('[Test 9] Testing Mobile Viewport (390x844) Controls...');
+    await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
     await page.goto(URL, { waitUntil: 'networkidle0' });
     await page.evaluateHandle('document.fonts.ready');
     await new Promise(r => setTimeout(r, 400));
 
+    // Check Start Screen on mobile
     await page.screenshot({ path: 'test_mobile_start.png' });
     console.log('Saved test_mobile_start.png');
 
-    // Start game on mobile
-    await page.click('#btn-start');
-    await new Promise(r => setTimeout(r, 1000));
+    // Tap START
+    await page.tap('#btn-start');
+    await new Promise(r => setTimeout(r, 500));
+
+    // Verify Arrow Buttons are visible on mobile and within viewport
+    const btnLeftRect = await page.$eval('#btn-arrow-left', el => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom };
+    });
+    const btnRightRect = await page.$eval('#btn-arrow-right', el => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom };
+    });
+    console.log('Left Arrow Button Rect on Mobile:', btnLeftRect);
+    console.log('Right Arrow Button Rect on Mobile:', btnRightRect);
+
+    if (btnLeftRect.width < 40 || btnLeftRect.height < 30 || btnLeftRect.bottom > 844) {
+      throw new Error(`Left arrow button is hidden or out of viewport: ${JSON.stringify(btnLeftRect)}`);
+    }
+    if (btnRightRect.width < 40 || btnRightRect.height < 30 || btnRightRect.bottom > 844) {
+      throw new Error(`Right arrow button is hidden or out of viewport: ${JSON.stringify(btnRightRect)}`);
+    }
+
+    // 11. Test Mobile On-Screen Arrow Buttons (Press & Hold)
+    console.log('[Test 10] Testing Press & Hold on Right Arrow Button...');
+    const dogPosMobileInit = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Mobile Initial Dog Pos:', dogPosMobileInit);
+
+    // Press right button
+    await page.evaluate(() => {
+      const btn = document.getElementById('btn-arrow-right');
+      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    });
+    await new Promise(r => setTimeout(r, 300));
+    // Release right button
+    await page.evaluate(() => {
+      const btn = document.getElementById('btn-arrow-right');
+      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true }));
+    });
+    await new Promise(r => setTimeout(r, 50));
+
+    const dogPosAfterBtnRight = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog Pos after holding Right Arrow Button:', dogPosAfterBtnRight);
+    if (dogPosAfterBtnRight <= dogPosMobileInit) {
+      throw new Error('Right Arrow Button did not move dog right!');
+    }
+
+    // Press left button
+    console.log('[Test 11] Testing Press & Hold on Left Arrow Button...');
+    await page.evaluate(() => {
+      const btn = document.getElementById('btn-arrow-left');
+      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    });
+    await new Promise(r => setTimeout(r, 350));
+    // Release left button
+    await page.evaluate(() => {
+      const btn = document.getElementById('btn-arrow-left');
+      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true }));
+    });
+    await new Promise(r => setTimeout(r, 50));
+
+    const dogLeftInfo = await page.$eval('#player-dog', el => ({
+      x: parseFloat(el.style.left),
+      facingLeft: el.classList.contains('facing-left')
+    }));
+    console.log('Dog Pos after holding Left Arrow Button:', dogLeftInfo);
+    if (dogLeftInfo.x >= dogPosAfterBtnRight) {
+      throw new Error('Left Arrow Button did not move dog left!');
+    }
+    if (!dogLeftInfo.facingLeft) {
+      throw new Error('Dog is not facing left when moving with Left Arrow button!');
+    }
+
+    // 12. Test Mobile Touch-Drag Control
+    console.log('[Test 12] Testing Mobile Touch-Drag Movement...');
+    const posBeforeDrag = dogLeftInfo.x;
+
+    // Simulate touch drag to the right by 80px
+    await page.evaluate(() => {
+      const arena = document.getElementById('game-arena');
+      arena.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 150,
+        clientY: 400,
+        pointerType: 'touch'
+      }));
+      window.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 230,
+        clientY: 400,
+        pointerType: 'touch'
+      }));
+      window.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 230,
+        clientY: 400,
+        pointerType: 'touch'
+      }));
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    const dogPosAfterDragRight = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Dog Pos after Touch-Drag Right (+80px):', dogPosAfterDragRight);
+    if (dogPosAfterDragRight <= posBeforeDrag) {
+      throw new Error('Touch-drag right did not move dog right!');
+    }
+
+    // Simulate touch drag to the left by 100px
+    await page.evaluate(() => {
+      const arena = document.getElementById('game-arena');
+      arena.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 230,
+        clientY: 400,
+        pointerType: 'touch'
+      }));
+      window.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 130,
+        clientY: 400,
+        pointerType: 'touch'
+      }));
+      window.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 130,
+        clientY: 400,
+        pointerType: 'touch'
+      }));
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    const dogPosAfterDragLeft = await page.$eval('#player-dog', el => ({
+      x: parseFloat(el.style.left),
+      facingLeft: el.classList.contains('facing-left')
+    }));
+    console.log('Dog Pos after Touch-Drag Left (-100px):', dogPosAfterDragLeft);
+    if (dogPosAfterDragLeft.x >= dogPosAfterDragRight) {
+      throw new Error('Touch-drag left did not move dog left!');
+    }
+    if (!dogPosAfterDragLeft.facingLeft) {
+      throw new Error('Dog is not facing left after dragging left!');
+    }
+
+    // 13. Test Interchangeable Controls (Drag then Button then Drag)
+    console.log('[Test 13] Testing Interchangeable Touch-Drag and Button Usage...');
+    // 1. Drag right +50px
+    await page.evaluate(() => {
+      const arena = document.getElementById('game-arena');
+      arena.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 400, pointerType: 'touch' }));
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, clientX: 150, clientY: 400, pointerType: 'touch' }));
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerType: 'touch' }));
+    });
+    const afterStep1 = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+
+    // 2. Press left button
+    await page.evaluate(() => {
+      const btn = document.getElementById('btn-arrow-left');
+      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    });
+    await new Promise(r => setTimeout(r, 200));
+    await page.evaluate(() => {
+      const btn = document.getElementById('btn-arrow-left');
+      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true }));
+    });
+    const afterStep2 = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    if (afterStep2 >= afterStep1) {
+      throw new Error('Button failed after touch-drag!');
+    }
+
+    // 3. Drag right again
+    await page.evaluate(() => {
+      const arena = document.getElementById('game-arena');
+      arena.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 400, pointerType: 'touch' }));
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, clientX: 160, clientY: 400, pointerType: 'touch' }));
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerType: 'touch' }));
+    });
+    const afterStep3 = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    if (afterStep3 <= afterStep2) {
+      throw new Error('Touch-drag failed after button press!');
+    }
+    console.log('Interchangeable test successfully executed!');
+
+    // 14. Test Boundary Clamping on Mobile
+    console.log('[Test 14] Testing Boundary Clamping on Mobile...');
+    // Drag far beyond right edge
+    await page.evaluate(() => {
+      const arena = document.getElementById('game-arena');
+      arena.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 100, clientY: 400, pointerType: 'touch' }));
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, clientX: 1000, clientY: 400, pointerType: 'touch' }));
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerType: 'touch' }));
+    });
+    const posAtRightBound = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Pos at extreme right drag:', posAtRightBound);
+    if (posAtRightBound > 330) {
+      throw new Error(`Dog exceeded right boundary on mobile: ${posAtRightBound}`);
+    }
+
+    // Drag far beyond left edge
+    await page.evaluate(() => {
+      const arena = document.getElementById('game-arena');
+      arena.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 500, clientY: 400, pointerType: 'touch' }));
+      window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, cancelable: true, clientX: -500, clientY: 400, pointerType: 'touch' }));
+      window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, pointerType: 'touch' }));
+    });
+    const posAtLeftBound = await page.$eval('#player-dog', el => parseFloat(el.style.left));
+    console.log('Pos at extreme left drag:', posAtLeftBound);
+    if (posAtLeftBound < 60) {
+      throw new Error(`Dog exceeded left boundary on mobile: ${posAtLeftBound}`);
+    }
+
+    // 15. Capture Final Mobile Gameplay Screenshot
     await page.screenshot({ path: 'test_mobile_gameplay.png' });
     console.log('Saved test_mobile_gameplay.png');
 
-    console.log('--- All Tests Passed Successfully! ---');
+    console.log('=== All Gamepad, Keyboard, Arrow Buttons, and Touch-Drag Tests Passed! ===');
 
   } finally {
     await browser.close();

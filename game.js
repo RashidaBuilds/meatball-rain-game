@@ -28,6 +28,15 @@ const CONFIG = {
   dogMoveSpeed: 520,        // px per second keyboard
 };
 
+const GAMEPAD_CONFIG = {
+  deadzone: 0.18,
+  stickAxisIndex: 0,      // Left analog stick horizontal
+  dpadLeftBtnIndex: 14,   // Standard D-pad left
+  dpadRightBtnIndex: 15,  // Standard D-pad right
+  actionBtnIndex: 0,      // 'A' / Cross button
+  startBtnIndex: 9        // Start / Options button
+};
+
 // 2. Game State
 const state = {
   screen: 'START', // 'START' | 'PLAYING' | 'GAME_OVER'
@@ -45,6 +54,8 @@ const state = {
     KeyA: false,
     KeyD: false
   },
+  touchLeftPressed: false,
+  touchRightPressed: false,
   activeMeatballs: [],      // array of meatball objects
   animationFrameId: null
 };
@@ -56,6 +67,8 @@ const dom = {
   gameOverScreen: document.getElementById('game-over-screen'),
   btnStart: document.getElementById('btn-start'),
   btnRestart: document.getElementById('btn-restart'),
+  btnArrowLeft: document.getElementById('btn-arrow-left'),
+  btnArrowRight: document.getElementById('btn-arrow-right'),
   gameArena: document.getElementById('game-arena'),
   playerDog: document.getElementById('player-dog'),
   scoreValue: document.getElementById('score-value'),
@@ -81,6 +94,12 @@ function init() {
 
   // Pointer / Mouse / Touch interaction on the game arena
   setupPointerControls();
+
+  // Mobile arrow buttons (press & hold)
+  setupArrowButtons();
+
+  // Gamepad controller support
+  setupGamepadSupport();
 
   // Resize handler
   window.addEventListener('resize', handleResize);
@@ -113,6 +132,12 @@ function restartGame() {
 
 function gameOver() {
   state.screen = 'GAME_OVER';
+  state.touchLeftPressed = false;
+  state.touchRightPressed = false;
+  isPointerDragging = false;
+  if (dom.btnArrowLeft) dom.btnArrowLeft.classList.remove('active');
+  if (dom.btnArrowRight) dom.btnArrowRight.classList.remove('active');
+
   if (state.animationFrameId) {
     cancelAnimationFrame(state.animationFrameId);
     state.animationFrameId = null;
@@ -129,6 +154,9 @@ function gameOver() {
 
   // Show Game Over Modal
   dom.gameOverScreen.style.display = 'flex';
+
+  // Resume polling gamepad buttons for restart
+  pollMenuGamepad();
 }
 
 // 6. Keyboard Handling
@@ -145,35 +173,263 @@ function handleKeyUp(e) {
   }
 }
 
-// 7. Pointer (Mouse & Touch) Controls
-function setupPointerControls() {
-  let isPointerDown = false;
+// 7. Touch-Drag and Pointer Controls
+let isPointerDragging = false;
+let lastPointerX = 0;
 
-  const updateTargetFromPointer = (clientX) => {
+function setupPointerControls() {
+  const arena = dom.gameArena;
+
+  const onPointerDown = (e) => {
     if (state.screen !== 'PLAYING') return;
-    const arenaRect = dom.gameArena.getBoundingClientRect();
-    const relativeX = clientX - arenaRect.left;
-    state.dogTargetX = Math.max(70, Math.min(arenaRect.width - 70, relativeX));
+    // Don't drag if tapping arrow buttons or HUD
+    if (e.target.closest('#btn-arrow-left, #btn-arrow-right, .game-hud')) return;
+
+    isPointerDragging = true;
+    lastPointerX = e.clientX;
+    state.dogTargetX = null;
   };
 
-  dom.gameArena.addEventListener('pointerdown', (e) => {
-    isPointerDown = true;
-    updateTargetFromPointer(e.clientX);
-  });
+  const onPointerMove = (e) => {
+    if (state.screen !== 'PLAYING' || !isPointerDragging) return;
 
-  window.addEventListener('pointermove', (e) => {
-    if (isPointerDown || state.screen === 'PLAYING') {
-      updateTargetFromPointer(e.clientX);
+    if (e.cancelable) {
+      e.preventDefault(); // Prevent unwanted page scrolling during gameplay
+    }
+
+    const currentX = e.clientX;
+    const deltaX = currentX - lastPointerX;
+    lastPointerX = currentX;
+
+    if (Math.abs(deltaX) > 0.2) {
+      state.dogX += deltaX;
+
+      // Update orientation based on horizontal drag direction
+      if (deltaX < -0.2 && state.dogFacing !== 'left') {
+        state.dogFacing = 'left';
+        dom.playerDog.classList.add('facing-left');
+      } else if (deltaX > 0.2 && state.dogFacing !== 'right') {
+        state.dogFacing = 'right';
+        dom.playerDog.classList.remove('facing-left');
+      }
+
+      // Clamp within arena boundaries immediately
+      const arenaWidth = dom.gameArena.clientWidth || window.innerWidth;
+      const halfDog = window.innerWidth <= 600 ? 60 : 65;
+      state.dogX = Math.max(halfDog, Math.min(arenaWidth - halfDog, state.dogX));
+      applyDogPosition();
+    }
+  };
+
+  const onPointerUp = () => {
+    isPointerDragging = false;
+  };
+
+  arena.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove, { passive: false });
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', onPointerUp);
+
+  // Dedicated touch listeners for guaranteed mobile touch drag
+  arena.addEventListener('touchstart', (e) => {
+    if (state.screen !== 'PLAYING') return;
+    if (e.target.closest('#btn-arrow-left, #btn-arrow-right, .game-hud')) return;
+    if (e.touches && e.touches.length > 0) {
+      isPointerDragging = true;
+      lastPointerX = e.touches[0].clientX;
+      state.dogTargetX = null;
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (state.screen !== 'PLAYING' || !isPointerDragging) return;
+    if (e.cancelable) {
+      e.preventDefault(); // Prevent unwanted mobile page scroll
+    }
+    if (e.touches && e.touches.length > 0) {
+      const currentX = e.touches[0].clientX;
+      const deltaX = currentX - lastPointerX;
+      lastPointerX = currentX;
+
+      if (Math.abs(deltaX) > 0.2) {
+        state.dogX += deltaX;
+
+        if (deltaX < -0.2 && state.dogFacing !== 'left') {
+          state.dogFacing = 'left';
+          dom.playerDog.classList.add('facing-left');
+        } else if (deltaX > 0.2 && state.dogFacing !== 'right') {
+          state.dogFacing = 'right';
+          dom.playerDog.classList.remove('facing-left');
+        }
+
+        const arenaWidth = dom.gameArena.clientWidth || window.innerWidth;
+        const halfDog = window.innerWidth <= 600 ? 60 : 65;
+        state.dogX = Math.max(halfDog, Math.min(arenaWidth - halfDog, state.dogX));
+        applyDogPosition();
+      }
+    }
+  }, { passive: false });
+
+  window.addEventListener('touchend', onPointerUp);
+  window.addEventListener('touchcancel', onPointerUp);
+}
+
+// 8. Mobile Arrow Buttons (Press & Hold Support)
+function setupArrowButtons() {
+  if (!dom.btnArrowLeft || !dom.btnArrowRight) return;
+
+  const bindArrowButton = (button, isLeft) => {
+    const handleDown = (e) => {
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+      if (isLeft) {
+        state.touchLeftPressed = true;
+        button.classList.add('active');
+      } else {
+        state.touchRightPressed = true;
+        button.classList.add('active');
+      }
+    };
+
+    const handleUp = (e) => {
+      if (e && e.cancelable) e.preventDefault();
+      if (isLeft) {
+        state.touchLeftPressed = false;
+        button.classList.remove('active');
+      } else {
+        state.touchRightPressed = false;
+        button.classList.remove('active');
+      }
+    };
+
+    // Pointer events (handles mouse click/hold and touch)
+    button.addEventListener('pointerdown', handleDown);
+    button.addEventListener('pointerup', handleUp);
+    button.addEventListener('pointercancel', handleUp);
+    button.addEventListener('pointerleave', handleUp);
+
+    // Native touch events for mobile hold stability
+    button.addEventListener('touchstart', handleDown, { passive: false });
+    button.addEventListener('touchend', handleUp, { passive: false });
+    button.addEventListener('touchcancel', handleUp, { passive: false });
+
+    // Prevent context menu on long-press
+    button.addEventListener('contextmenu', (e) => e.preventDefault());
+  };
+
+  bindArrowButton(dom.btnArrowLeft, true);
+  bindArrowButton(dom.btnArrowRight, false);
+}
+
+// 8. Gamepad Controller Support
+function setupGamepadSupport() {
+  window.addEventListener('gamepadconnected', (e) => {
+    const gp = e.gamepad;
+    if (gp) {
+      console.log(`[Gamepad] Connected at index ${gp.index}: ${gp.id}`);
+    } else {
+      console.log('[Gamepad] Connected event received');
     }
   });
 
-  window.addEventListener('pointerup', () => {
-    isPointerDown = false;
+  window.addEventListener('gamepaddisconnected', (e) => {
+    const gp = e.gamepad;
+    if (gp) {
+      console.log(`[Gamepad] Disconnected from index ${gp.index}: ${gp.id}`);
+    } else {
+      console.log('[Gamepad] Disconnected event received');
+    }
   });
 
-  window.addEventListener('pointercancel', () => {
-    isPointerDown = false;
-  });
+  // Start polling gamepad menu buttons
+  pollMenuGamepad();
+}
+
+let prevGamepadActionState = false;
+
+function pollMenuGamepad() {
+  if (state.screen !== 'PLAYING') {
+    checkGamepadMenuButtons();
+    requestAnimationFrame(pollMenuGamepad);
+  }
+}
+
+function checkGamepadMenuButtons() {
+  if (typeof navigator.getGamepads !== 'function') return;
+  const gamepads = navigator.getGamepads();
+  if (!gamepads) return;
+
+  let isActionPressed = false;
+
+  for (let i = 0; i < gamepads.length; i++) {
+    const gp = gamepads[i];
+    if (!gp || !gp.connected || !gp.buttons) continue;
+
+    const btnA = gp.buttons[GAMEPAD_CONFIG.actionBtnIndex];
+    const btnStart = gp.buttons[GAMEPAD_CONFIG.startBtnIndex];
+
+    if ((btnA && (btnA.pressed || btnA.value > 0.5)) ||
+        (btnStart && (btnStart.pressed || btnStart.value > 0.5))) {
+      isActionPressed = true;
+      break;
+    }
+  }
+
+  // Trigger on button press edge
+  if (isActionPressed && !prevGamepadActionState) {
+    if (state.screen === 'START') {
+      startGame();
+    } else if (state.screen === 'GAME_OVER') {
+      restartGame();
+    }
+  }
+
+  prevGamepadActionState = isActionPressed;
+}
+
+function getControllerHorizontalInput() {
+  if (typeof navigator.getGamepads !== 'function') return 0;
+  const gamepads = navigator.getGamepads();
+  if (!gamepads) return 0;
+
+  let totalInput = 0;
+
+  for (let i = 0; i < gamepads.length; i++) {
+    const gp = gamepads[i];
+    if (!gp || !gp.connected) continue;
+
+    // 1. Left Analog Stick (Axis 0)
+    let stickVal = 0;
+    if (gp.axes && gp.axes.length > GAMEPAD_CONFIG.stickAxisIndex) {
+      const rawAxis = gp.axes[GAMEPAD_CONFIG.stickAxisIndex];
+      if (Math.abs(rawAxis) > GAMEPAD_CONFIG.deadzone) {
+        const sign = Math.sign(rawAxis);
+        stickVal = sign * ((Math.abs(rawAxis) - GAMEPAD_CONFIG.deadzone) / (1 - GAMEPAD_CONFIG.deadzone));
+      }
+    }
+
+    // 2. D-Pad Left / Right Buttons
+    let dpadVal = 0;
+    if (gp.buttons) {
+      const btnLeft = gp.buttons[GAMEPAD_CONFIG.dpadLeftBtnIndex];
+      const btnRight = gp.buttons[GAMEPAD_CONFIG.dpadRightBtnIndex];
+
+      const leftPressed = btnLeft && (btnLeft.pressed || btnLeft.value > 0.5);
+      const rightPressed = btnRight && (btnRight.pressed || btnRight.value > 0.5);
+
+      if (leftPressed && !rightPressed) dpadVal = -1;
+      else if (rightPressed && !leftPressed) dpadVal = 1;
+    }
+
+    // Prefer D-pad if active, otherwise use analog stick value
+    const gpInput = dpadVal !== 0 ? dpadVal : stickVal;
+
+    if (Math.abs(gpInput) > Math.abs(totalInput)) {
+      totalInput = gpInput;
+    }
+  }
+
+  return Math.max(-1, Math.min(1, totalInput));
 }
 
 function handleResize() {
@@ -187,17 +443,22 @@ function resetDogPosition() {
   state.dogX = arenaWidth / 2;
   state.dogTargetX = null;
   state.dogFacing = 'right';
+  state.touchLeftPressed = false;
+  state.touchRightPressed = false;
+  isPointerDragging = false;
+  if (dom.btnArrowLeft) dom.btnArrowLeft.classList.remove('active');
+  if (dom.btnArrowRight) dom.btnArrowRight.classList.remove('active');
   applyDogPosition();
 }
 
 function clampDogPosition() {
   const arenaWidth = dom.gameArena.clientWidth || window.innerWidth;
-  const halfDog = 70;
+  const halfDog = window.innerWidth <= 600 ? 60 : 70;
   state.dogX = Math.max(halfDog, Math.min(arenaWidth - halfDog, state.dogX));
   applyDogPosition();
 }
 
-// 8. Main Game Loop
+// 9. Main Game Loop
 function gameLoop(timestamp) {
   if (state.screen !== 'PLAYING') return;
 
@@ -211,31 +472,41 @@ function gameLoop(timestamp) {
   state.animationFrameId = requestAnimationFrame(gameLoop);
 }
 
-// 9. Update Player Movement
+// 10. Update Player Movement
 function updatePlayer(dt) {
   const arenaWidth = dom.gameArena.clientWidth || window.innerWidth;
-  const halfDog = 65;
-  let moveDir = 0;
+  const halfDog = window.innerWidth <= 600 ? 60 : 65;
 
-  // Check keyboard input
-  if (state.keysPressed.ArrowLeft || state.keysPressed.KeyA) {
-    moveDir -= 1;
+  // 1. Keyboard & On-screen arrow buttons directional input (-1, 0, 1)
+  let buttonDir = 0;
+  if (state.keysPressed.ArrowLeft || state.keysPressed.KeyA || state.touchLeftPressed) {
+    buttonDir -= 1;
   }
-  if (state.keysPressed.ArrowRight || state.keysPressed.KeyD) {
-    moveDir += 1;
+  if (state.keysPressed.ArrowRight || state.keysPressed.KeyD || state.touchRightPressed) {
+    buttonDir += 1;
   }
 
-  if (moveDir !== 0) {
-    state.dogX += moveDir * CONFIG.dogMoveSpeed * dt;
-    if (moveDir < 0 && state.dogFacing !== 'left') {
+  // 2. Controller directional / analog input (-1.0 to 1.0)
+  const controllerDir = getControllerHorizontalInput();
+
+  // Combine keyboard/buttons and controller seamlessly
+  let moveAmount = 0;
+  if (buttonDir !== 0 || controllerDir !== 0) {
+    state.dogTargetX = null; // Clear pointer target when using direct directional input
+    moveAmount = Math.max(-1, Math.min(1, buttonDir + controllerDir));
+  }
+
+  if (moveAmount !== 0) {
+    state.dogX += moveAmount * CONFIG.dogMoveSpeed * dt;
+    if (moveAmount < -0.05 && state.dogFacing !== 'left') {
       state.dogFacing = 'left';
       dom.playerDog.classList.add('facing-left');
-    } else if (moveDir > 0 && state.dogFacing !== 'right') {
+    } else if (moveAmount > 0.05 && state.dogFacing !== 'right') {
       state.dogFacing = 'right';
       dom.playerDog.classList.remove('facing-left');
     }
   } else if (state.dogTargetX !== null) {
-    // Smoothly follow pointer/touch
+    // 3. Pointer follow target if set
     const dx = state.dogTargetX - state.dogX;
     const distance = Math.abs(dx);
     if (distance > 2) {
